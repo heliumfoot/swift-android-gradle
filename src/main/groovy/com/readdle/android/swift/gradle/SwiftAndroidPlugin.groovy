@@ -34,9 +34,15 @@ class SwiftAndroidPlugin implements Plugin<Project> {
                 cleanTask.dependsOn(swiftClean)
             }
 
-            project.android.applicationVariants.all { variant ->
-                handleVariant(project, variant)
-            }
+			if (project.android.hasProperty("libraryVariants")) {
+				project.android.libraryVariants.all { variant ->
+					handleVariant(project, variant)
+				}
+			} else {
+				project.android.applicationVariants.all { variant ->
+					handleVariant(project, variant)
+				}
+			}
         }
     }
 
@@ -225,7 +231,7 @@ class SwiftAndroidPlugin implements Plugin<Project> {
             from(outputLibraries)
 
             into "src/main/jniLibs/${arch.androidAbi}"
-            
+
             fileMode 0644
         }
     }
