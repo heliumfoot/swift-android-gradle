@@ -15,7 +15,6 @@ apply plugin: 'com.jfrog.bintray'
 
 group = 'com.readdle.android.swift'
 archivesBaseName = 'gradle'
-version = '1.4.0'
 
 repositories {
     jcenter()
@@ -33,7 +32,36 @@ task sourcesJar(type: Jar) {
     from sourceSets.main.allSource
 }
 
+/**
+ *
+ * @param propertyName
+ * @return returns the value as passed in from the command line as a -P, read from local.properties or System.getenv in that order
+ */
+String getFromEnvironment(String propertyName) {
+    def properties = new Properties()
+    try {
+        properties.load(new FileInputStream(rootProject.file("local.properties")))
+    } catch (Throwable e) {
+        println "Cannot read local.properties"
+    }
+    def value = properties[propertyName] ?: System.getenv(propertyName)
+    if (project.hasProperty(propertyName)) {
+        value = project.getProperty(propertyName)
+    }
+    return value
+}
+
 publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/"+getFromEnvironment('github.organization')+"/swift-android-gradle")
+            credentials {
+                username = getFromEnvironment('gpr.user')
+                password = getFromEnvironment('gpr.key')
+            }
+        }
+    }
     publications {
         mavenJava(MavenPublication) {
             artifactId archivesBaseName
