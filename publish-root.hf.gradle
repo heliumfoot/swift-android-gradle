@@ -1,0 +1,32 @@
+// Create variables with empty default values
+ext["gpr.user"] = ''
+ext["gpr.key"] = ''
+ext["github.organization"] = 'heliumfoot'
+
+File secretPropsFile = project.rootProject.file('local.properties')
+if (secretPropsFile.exists()) {
+    // Read local.properties file first if it exists
+    Properties p = new Properties()
+    new FileInputStream(secretPropsFile).withCloseable { is -> p.load(is) }
+    p.each { name, value -> ext[name] = value }
+} else {
+    // Use system environment variables
+    ext["gpr.user"] = System.getenv('GPR_USERNAME')
+    ext["gpr.key"] = System.getenv('GPR_PASSWORD')
+    ext["github.organization"] = System.getenv('GITHUB_ORGANIZATION')
+}
+
+def githubUserName = ext.getFromEnvironment('gpr.user')
+def githubUserKey = ext.getFromEnvironment('gpr.key')
+def githubOrganization = ext.getFromEnvironment('github.organization') ?: "heliumfoot"
+
+repositories {
+    maven {
+        name = "GitHubPackages"
+        url = uri("https://maven.pkg.github.com/${githubOrganization}/swift-android-gradle")
+        credentials {
+            username = githubUserName
+            password = githubUserKey
+        }
+    }
+}

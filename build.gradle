@@ -1,38 +1,37 @@
 buildscript {
     repositories {
         jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
     }
     dependencies {
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.2'
+        classpath 'io.github.gradle-nexus:publish-plugin:1.1.0'
     }
 }
 
 apply plugin: 'groovy'
-apply plugin: 'maven'
 apply plugin: 'idea'
-apply plugin: 'maven-publish'
-apply plugin: 'com.jfrog.bintray'
 
-apply from: rootProject.file('functions.gradle')
-
-group = 'com.readdle.android.swift'
-archivesBaseName = 'gradle'
-version = '1.4.0'
+// apply plugin: 'io.github.gradle-nexus.publish-plugin'
+// apply from: "${rootDir}/publish-root.gradle"
+apply from: "${rootDir}/publish-root.hf.gradle"
 
 repositories {
     jcenter()
+    google()
 }
 
 dependencies {
     compile gradleApi()
     compile localGroovy()
     compile "commons-configuration:commons-configuration:1.10"
+    compileOnly 'com.android.tools.build:gradle:4.1.0'
 }
 
-// custom tasks for creating source/javadoc jars
-task sourcesJar(type: Jar) {
-    classifier = 'sources'
-    from sourceSets.main.allSource
+java {
+    withSourcesJar()
+    withJavadocJar()
 }
 
 def githubUserName = ext.getFromEnvironment('gpr.user')
@@ -59,30 +58,11 @@ publishing {
     }
 }
 
-bintray {
-    // define this in ~/.gradle/gradle.properties
-    user = System.getenv("BINTRAY_USER")
-    key = System.getenv("BINTRAY_API_KEY")
-
-    publish = true
-    publications = ['mavenJava'] //When uploading Maven-based publication files
-
-    pkg {
-        repo = 'maven'
-        userOrg = 'heliumfoot'
-        name = 'swift-android-gradle'
-
-        desc = 'Gradle plugin for build swift for android with Gradle and Swift Package Manager'
-        vcsUrl = 'https://github.com/heliumfoot/swift-android-gradle'
-        githubRepo = 'heliumfoot/swift-android-gradle'
-
-        licenses = ['Apache-2.0']
-
-        labels = ['gradle', 'plugin', 'swift', 'android']
-        publicDownloadNumbers = true
-
-        attributes = ['maturity': 'Experimental']
-    }
+ext {
+    // Provide your own coordinates here
+    PUBLISH_GROUP_ID = 'com.heliumfoot.android.swift'
+    PUBLISH_ARTIFACT_ID = 'gradle'
+    PUBLISH_VERSION = '1.4.0'
 }
 
-bintrayUpload.dependsOn(build, sourcesJar)
+apply from: "${rootProject.projectDir}/publish-module.hf.gradle"
