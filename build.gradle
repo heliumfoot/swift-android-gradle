@@ -34,35 +34,11 @@ java {
     withJavadocJar()
 }
 
-def githubUserName = ext.getFromEnvironment('gpr.user')
-def githubUserKey = ext.getFromEnvironment('gpr.key')
-def githubOrganization = ext.getFromEnvironment('github.organization') ?: "heliumfoot"
-
-publishing {
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/${githubOrganization}/swift-android-gradle")
-            credentials {
-                username = githubUserName
-                password = githubUserKey
-            }
-        }
-    }
-    publications {
-        mavenJava(MavenPublication) {
-            artifactId archivesBaseName
-            from components.java
-            artifact sourcesJar
-        }
-    }
-}
-
 ext {
     // Provide your own coordinates here
     PUBLISH_GROUP_ID = 'com.heliumfoot.android.swift'
     PUBLISH_ARTIFACT_ID = 'gradle'
-    PUBLISH_VERSION = '1.4.0'
+    PUBLISH_VERSION = '1.4.1'
 }
 
 apply from: "${rootProject.projectDir}/publish-module.hf.gradle"

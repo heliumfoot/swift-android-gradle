@@ -1,7 +1,7 @@
 // Create variables with empty default values
-ext["gpr.user"] = ''
-ext["gpr.key"] = ''
-ext["github.organization"] = 'heliumfoot'
+ext["githubUserName"] = ''
+ext["githubUserKey"] = ''
+ext["githubOrganization"] = 'heliumfoot'
 
 File secretPropsFile = project.rootProject.file('local.properties')
 if (secretPropsFile.exists()) {
@@ -11,14 +11,10 @@ if (secretPropsFile.exists()) {
     p.each { name, value -> ext[name] = value }
 } else {
     // Use system environment variables
-    ext["gpr.user"] = System.getenv('GPR_USERNAME')
-    ext["gpr.key"] = System.getenv('GPR_PASSWORD')
-    ext["github.organization"] = System.getenv('GITHUB_ORGANIZATION')
+    ext["githubUserName"] = System.getenv('GITHUB_USERNAME')
+    ext["githubUserKey"] = System.getenv('GITHUB_PASSWORD')
+    ext["githubOrganization"] = System.getenv('GITHUB_ORGANIZATION') ?: 'heliumfoot'
 }
-
-def githubUserName = ext.getFromEnvironment('gpr.user')
-def githubUserKey = ext.getFromEnvironment('gpr.key')
-def githubOrganization = ext.getFromEnvironment('github.organization') ?: "heliumfoot"
 
 repositories {
     maven {

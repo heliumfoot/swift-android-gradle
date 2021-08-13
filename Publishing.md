@@ -11,12 +11,12 @@
 ### Set The Version
 Update this line in build.gradle
 ```
-version = '1.4.0'
+version = '1.4.1'
 ```
 
 ### Publish with Gradle
 ```
-./gradlew publishMavenJavaPublicationToGitHubPackagesRepository
+./gradlew publishReleasePublicationToGitHubPackagesRepository
 ```
 
 
