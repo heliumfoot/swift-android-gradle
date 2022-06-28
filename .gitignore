@@ -7,3 +7,4 @@ build
 *.class
 *.pyc
 local.properties
+.envrc
