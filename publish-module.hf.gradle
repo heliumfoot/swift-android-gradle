@@ -1,5 +1,3 @@
-apply plugin: 'maven-publish'
-apply plugin: 'signing'
 
 task androidSourcesJar(type: Jar) {
     archiveClassifier.set('sources')
@@ -31,18 +29,18 @@ afterEvaluate {
                 pom {
                     name = PUBLISH_ARTIFACT_ID
                     description = 'Swift Android Gradle plugin'
-                    url = 'https://github.com/readdle/swift-android-gradle'
+                    url = 'https://github.com/heliumfoot/swift-android-gradle'
                     licenses {
                         license {
                             name = 'MIT License'
-                            url = 'https://github.com/readdle/swift-android-gradle/blob/master/LICENSE'
+                            url = 'https://github.com/heliumfoot/swift-android-gradle/blob/master/LICENSE'
                         }
                     }
                     developers {
                         developer {
-                            id = 'andriydruk'
-                            name = 'Andrew Druk'
-                            email = 'adruk@readdle.com'
+                            id = 'heliumfoot'
+                            name = 'Helium Foot Software'
+                            email = 'developers@heliumfoot.com'
                         }
                     }
 
@@ -51,18 +49,10 @@ afterEvaluate {
                     scm {
                         connection = 'scm:git:github.com/readdle/swift-android-gradle.git'
                         developerConnection = 'scm:git:ssh://github.com/readdle/swift-android-gradle.git'
-                        url = 'https://github.com/readdle/swift-android-gradle'
+                        url = 'https://github.com/heliumfoot/swift-android-gradle'
                     }
                 }
             }
         }
     }
-}
-
-ext["signing.keyId"] = rootProject.ext["signing.keyId"]
-ext["signing.password"] = rootProject.ext["signing.password"]
-ext["signing.secretKeyRingFile"] = rootProject.ext["signing.secretKeyRingFile"]
-
-signing {
-    sign publishing.publications
 }

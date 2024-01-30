@@ -6,5 +6,5 @@
 build
 *.class
 *.pyc
-local.properties
 .envrc
+local.properties

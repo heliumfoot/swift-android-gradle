@@ -12,8 +12,8 @@ buildscript {
 
 apply plugin: 'groovy'
 apply plugin: 'idea'
-apply plugin: 'io.github.gradle-nexus.publish-plugin'
-apply from: "${rootDir}/publish-root.gradle"
+apply plugin: 'maven-publish'
+apply from: "${rootDir}/publish-root.hf.gradle"
 
 repositories {
     jcenter()
@@ -34,9 +34,9 @@ java {
 
 ext {
     // Provide your own coordinates here
-    PUBLISH_GROUP_ID = 'com.readdle.android.swift'
+    PUBLISH_GROUP_ID = 'com.heliumfoot.android.swift'
     PUBLISH_ARTIFACT_ID = 'gradle'
     PUBLISH_VERSION = '1.4.1'
 }
 
-apply from: "${rootProject.projectDir}/publish-module.gradle"
+apply from: "${rootProject.projectDir}/publish-module.hf.gradle"
