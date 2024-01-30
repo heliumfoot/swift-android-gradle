@@ -8,7 +8,7 @@ import org.gradle.api.Project
 
 class ToolchainHandle {
     public static final String FN_LOCAL_PROPERTIES = "local.properties"
-    public static final String TOOLS_VERSION = "1.9.7-swift5.4"
+    public static final String TOOLS_VERSION = "1.9.8-swift5.7"
     public static final String SWIFT_ANDROID_HOME_KEY = "swift-android.dir"
     public static final String ANDROID_NDK_HOME_KEY = "ndk.dir"
 
@@ -58,16 +58,18 @@ class ToolchainHandle {
         return getFolderInToolchain("usr/lib/swift-${arch.swiftArch}/android")
     }
 
-    Map<String, String> getSwiftEnv() {
+    Map<String, String> getSwiftEnv(int apiLevel) {
         return [
                 SWIFT_ANDROID_HOME: toolchainFolder?.absolutePath,
+                SWIFT_ANDROID_API_LEVEL: apiLevel.toString()
         ]
     }
 
-    Map<String, String> getFullEnv(Arch arch) {
+    Map<String, String> getFullEnv(Arch arch, int apiLevel) {
         return [
                 SWIFT_ANDROID_ARCH: arch.swiftArch,
                 SWIFT_ANDROID_HOME: toolchainFolder?.absolutePath,
+                SWIFT_ANDROID_API_LEVEL: apiLevel.toString(),
                 ANDROID_NDK_HOME: ndkFolder?.absolutePath
         ]
     }

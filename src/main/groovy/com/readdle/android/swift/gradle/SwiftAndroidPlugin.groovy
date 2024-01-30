@@ -1,6 +1,8 @@
 package com.readdle.android.swift.gradle
 
+import com.android.build.gradle.api.ApplicationVariant
 import com.android.build.gradle.api.BaseVariant
+import com.android.build.gradle.api.LibraryVariant
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -28,6 +30,10 @@ class SwiftAndroidPlugin implements Plugin<Project> {
         project.afterEvaluate {
             installToolsTask = createInstallSwiftToolsTask(project)
 
+            if (extension.swiftLintEnabled) {
+                installToolsTask.dependsOn(createSwiftLintTask(project))
+            }
+
             createSwiftUpdateTask(project)
 
             Task swiftClean = createCleanTask(project, extension.usePackageClean)
@@ -36,8 +42,14 @@ class SwiftAndroidPlugin implements Plugin<Project> {
                 cleanTask.dependsOn(swiftClean)
             }
 
-            if (project.android.hasProperty("libraryVariants")) {
-                project.android.libraryVariants.all { variant ->
+            if(project.android.hasProperty('applicationVariants')) {
+                project.android.applicationVariants.all { ApplicationVariant variant ->
+                    handleVariant(project, variant)
+                }
+            }
+
+            if(project.android.hasProperty('libraryVariants')) {
+                project.android.libraryVariants.all { LibraryVariant variant ->
                     handleVariant(project, variant)
                 }
             } else {
@@ -113,7 +125,7 @@ class SwiftAndroidPlugin implements Plugin<Project> {
         if (!toolchainHandle.isToolchainPresent()) {
             throw new GradleException(
                     "Swift Toolchain location not found. Define location with swift-android.dir in the " +
-                    "local.properties file or with an SWIFT_ANDROID_HOME environment variable."
+                            "local.properties file or with an SWIFT_ANDROID_HOME environment variable."
             )
         }
     }
@@ -122,7 +134,7 @@ class SwiftAndroidPlugin implements Plugin<Project> {
         if (!toolchainHandle.isNdkPresent()) {
             throw new GradleException(
                     "NDK location not found. Define location with ndk.dir in the " +
-                    "local.properties file or with an ANDROID_NDK_HOME environment variable."
+                            "local.properties file or with an ANDROID_NDK_HOME environment variable."
             )
         }
     }
@@ -183,12 +195,13 @@ class SwiftAndroidPlugin implements Plugin<Project> {
 
         def configurationArgs = ["--configuration", isDebug ? "debug" : "release"]
         def extraArgs = isDebug ? extension.debug.extraInstallFlags : extension.release.extraInstallFlags
+        def apiLevel = extension.apiLevel
 
         return project.task(type: Exec, "swiftInstall${variantName}") {
             workingDir "src/main/swift"
             executable toolchainHandle.swiftInstallPath
             args configurationArgs + extraArgs
-            environment toolchainHandle.swiftEnv
+            environment toolchainHandle.getSwiftEnv(apiLevel)
         }
     }
 
@@ -206,12 +219,13 @@ class SwiftAndroidPlugin implements Plugin<Project> {
         def configurationArgs = ["--configuration", isDebug ? "debug" : "release"]
         def extraArgs = isDebug ? extension.debug.extraBuildFlags : extension.release.extraBuildFlags
         def arguments = configurationArgs + extraArgs
+        def apiLevel = extension.apiLevel
 
         return project.task(type: Exec, "swiftBuild${taskQualifier}") {
             workingDir "src/main/swift"
             executable toolchainHandle.swiftBuildPath
             args arguments
-            environment toolchainHandle.getFullEnv(arch)
+            environment toolchainHandle.getFullEnv(arch, apiLevel)
 
             doFirst {
                 checkNdk()
@@ -224,6 +238,7 @@ class SwiftAndroidPlugin implements Plugin<Project> {
 
     private Task createCopyTask(Project project, BaseVariant variant, Arch arch, Task swiftBuildTask) {
         def taskQualifier = taskQualifier(variant, arch)
+        def extension = project.extensions.getByType(SwiftAndroidPluginExtension)
 
         def task = project.tasks.findByName("copySwift${taskQualifier}")
         if (task != null) {
@@ -232,21 +247,21 @@ class SwiftAndroidPlugin implements Plugin<Project> {
 
         boolean isDebug = variant.buildType.isJniDebuggable()
         String swiftPmBuildPath = isDebug
-                ? "src/main/swift/.build/${arch.swiftTriple}/debug"
-                : "src/main/swift/.build/${arch.swiftTriple}/release"
+                ? "src/main/swift/.build/${arch.swiftTriple}${extension.apiLevel}/debug"
+                : "src/main/swift/.build/${arch.swiftTriple}${extension.apiLevel}/release"
 
         def outputLibraries = project.fileTree(swiftPmBuildPath) {
-            include "*.so"
+            include "*.so", "*.so.*"
         }
 
         return project.task(type: Copy, "copySwift${taskQualifier}") {
             dependsOn(swiftBuildTask)
 
             from("src/main/swift/.build/jniLibs/${arch.androidAbi}") {
-                include "*.so"
+                include "*.so", "*.so.*"
             }
             from(toolchainHandle.getSwiftLibFolder(arch)) {
-                include "*.so"
+                include "*.so", "*.so.*"
             }
             from(outputLibraries)
 
@@ -283,6 +298,24 @@ class SwiftAndroidPlugin implements Plugin<Project> {
                         link,
                         link.getParent().relativize(target)
                 )
+            }
+        }
+    }
+
+    private static Task createSwiftLintTask(Project project) {
+        return project.task(type: Exec, "swiftLint") {
+            workingDir "src/main/swift"
+            commandLine "swiftlint", "--strict", "--reporter", "xcode"
+
+            ignoreExitValue = true
+            errorOutput = new ByteArrayOutputStream()
+            standardOutput = new ByteArrayOutputStream()
+
+            doLast {
+                def output = standardOutput.toString()
+                if (!output.empty) {
+                    throw new GradleException(output)
+                }
             }
         }
     }
