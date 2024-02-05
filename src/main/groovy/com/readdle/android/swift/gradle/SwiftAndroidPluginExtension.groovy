@@ -111,7 +111,9 @@ class SwiftAndroidPluginExtension {
 
     boolean cleanEnabled = true
     boolean usePackageClean = true
+    boolean swiftLintEnabled = false
     boolean useKapt = false
+    int apiLevel = 24
 
     SwiftAndroidPluginExtension(Project project) {
         this.project = project
