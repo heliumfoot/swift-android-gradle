@@ -48,6 +48,32 @@ class SwiftAndroidPlugin implements Plugin<Project> {
                     handleVariant(project, variant)
                 }
             }
+
+            // This is a bit of a hacky workaround for the Gradle 8 dependency resolution change.
+            //
+            // The problem is that copySwift tasks of different arch + variants have overlapping output directories --
+            // tasks like copySwiftArm64Release, copySwiftX86_64Debug, etc. are all copying into src/main/jniLibs.
+            // The Gradle developers have some very strongly held opinions that tasks with overlapping outputs are bad
+            // and Gradle 8 makes this a hard error without explicit declaring every task as a dependency.
+            //
+            // Since the mergeDebugJniLibFolders and mergeReleaseJniLibFolders tasks both use outputs from src/main/jniLibs,
+            // this means that all of the copySwift*Release tasks must be declared as dependencies of mergeDebugJniLibFolders,
+            // and all of the copySwift*Debug tasks must be declared as dependencies of mergeReleaseJniLibFolders, which
+            // doesn't happen through the handleVariant() method chains that set up the pipeline per arch + variant.
+            // (only debug copy tasks are declared dependencies of mergeDebugJniLibFolders, and only release copy tasks are
+            //  declared dependencies of mergeReleaseJniLibFolders)
+            //
+            // Ideally, the control flow of this entire plugin should be reworked to follow Gradle configuration avoidance
+            // principle and avoid chaining task creation, but this may cause extra maintenance overhead in the future if Readdle
+            // updates/reworks this plugin in a different way than we do.  So for now, we use this workaround to declare
+            // all copySwift tasks as dependencies of both mergeDebugJniLibFolders and mergeReleaseJniLibFolders.
+            // Build times may increase as a result of this change.
+            def copySwiftTasks = project.tasks.findAll { it.name.startsWith("copySwift") }
+            project.tasks.withType(com.android.build.gradle.tasks.MergeSourceSetFolders).configureEach {
+                if (name.contains('JniLibFolders')) {
+                    copySwiftTasks.each { dependsOn it }
+                }
+            }
         }
     }
 
