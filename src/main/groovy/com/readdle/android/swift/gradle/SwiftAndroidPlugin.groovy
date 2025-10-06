@@ -17,7 +17,6 @@ import java.nio.file.Path
 
 class SwiftAndroidPlugin implements Plugin<Project> {
     private ToolchainHandle toolchainHandle
-    private Task installToolsTask
 
     @Override
     void apply(Project project) {
@@ -28,14 +27,6 @@ class SwiftAndroidPlugin implements Plugin<Project> {
         configurePropertiesTask(project)
 
         project.afterEvaluate {
-            installToolsTask = createInstallSwiftToolsTask(project)
-
-            if (extension.swiftLintEnabled) {
-                installToolsTask.dependsOn(createSwiftLintTask(project))
-            }
-
-            createSwiftUpdateTask(project)
-
             Task swiftClean = createCleanTask(project, extension.usePackageClean)
             if (extension.cleanEnabled) {
                 Task cleanTask = project.tasks.getByName("clean")
@@ -57,6 +48,32 @@ class SwiftAndroidPlugin implements Plugin<Project> {
                     handleVariant(project, variant)
                 }
             }
+
+            // This is a bit of a hacky workaround for the Gradle 8 dependency resolution change.
+            //
+            // The problem is that copySwift tasks of different arch + variants have overlapping output directories --
+            // tasks like copySwiftArm64Release, copySwiftX86_64Debug, etc. are all copying into src/main/jniLibs.
+            // The Gradle developers have some very strongly held opinions that tasks with overlapping outputs are bad
+            // and Gradle 8 makes this a hard error without explicit declaring every task as a dependency.
+            //
+            // Since the mergeDebugJniLibFolders and mergeReleaseJniLibFolders tasks both use outputs from src/main/jniLibs,
+            // this means that all of the copySwift*Release tasks must be declared as dependencies of mergeDebugJniLibFolders,
+            // and all of the copySwift*Debug tasks must be declared as dependencies of mergeReleaseJniLibFolders, which
+            // doesn't happen through the handleVariant() method chains that set up the pipeline per arch + variant.
+            // (only debug copy tasks are declared dependencies of mergeDebugJniLibFolders, and only release copy tasks are
+            //  declared dependencies of mergeReleaseJniLibFolders)
+            //
+            // Ideally, the control flow of this entire plugin should be reworked to follow Gradle configuration avoidance
+            // principle and avoid chaining task creation, but this may cause extra maintenance overhead in the future if Readdle
+            // updates/reworks this plugin in a different way than we do.  So for now, we use this workaround to declare
+            // all copySwift tasks as dependencies of both mergeDebugJniLibFolders and mergeReleaseJniLibFolders.
+            // Build times may increase as a result of this change.
+            def copySwiftTasks = project.tasks.findAll { it.name.startsWith("copySwift") }
+            project.tasks.withType(com.android.build.gradle.tasks.MergeSourceSetFolders).configureEach {
+                if (name.contains('JniLibFolders')) {
+                    copySwiftTasks.each { dependsOn it }
+                }
+            }
         }
     }
 
@@ -70,9 +87,6 @@ class SwiftAndroidPlugin implements Plugin<Project> {
 
     private void handleVariant(Project project, BaseVariant variant) {
         boolean isDebug = variant.buildType.isJniDebuggable()
-
-        Task swiftInstall = createSwiftInstallTask(project, variant)
-        swiftInstall.dependsOn(installToolsTask)
 
         Task swiftLinkGenerated = createLinkGeneratedSourcesTask(project, variant)
 
@@ -97,7 +111,7 @@ class SwiftAndroidPlugin implements Plugin<Project> {
 
     private Task createSwiftTaskChain(Project project, BaseVariant variant, Arch arch, Task swiftLinkGenerated) {
         Task swiftBuild = createSwiftBuildTask(project, variant, arch)
-        swiftBuild.dependsOn(installToolsTask, swiftLinkGenerated)
+        swiftBuild.dependsOn(swiftLinkGenerated)
 
         return createCopyTask(project, variant, arch, swiftBuild)
     }
@@ -140,24 +154,6 @@ class SwiftAndroidPlugin implements Plugin<Project> {
     }
 
     // Tasks
-    private Task createInstallSwiftToolsTask(Project project) {
-        def version = toolchainHandle.TOOLS_VERSION
-
-        return project.task(type: Exec, "installSwiftTools") {
-            executable toolchainHandle.toolsManagerPath
-            args "tools", "--install", version
-
-            doFirst {
-                checkToolchain()
-                println "Installing Swift Build Tools v${version}"
-            }
-
-            doLast {
-                println "Swift Build Tools v${version} installed"
-            }
-        }
-    }
-
     private static Task createCleanTask(Project project, boolean usePackageClean) {
         Task forceClean = project.task(type: Delete, "swiftForceClean") {
             // I don't trust Swift Package Manager's --clean
@@ -171,37 +167,6 @@ class SwiftAndroidPlugin implements Plugin<Project> {
 
         return project.task("swiftClean") {
             dependsOn(usePackageClean ? packageClean : forceClean)
-        }
-    }
-
-    // TODO: integrate with android gradle pipeline
-    private static Task createSwiftUpdateTask(Project project) {
-        return project.task(type: Exec, "swiftPackageUpdate") {
-            workingDir "src/main/swift"
-            commandLine "swift", "package", "update"
-        }
-    }
-
-    private Task createSwiftInstallTask(Project project, BaseVariant variant) {
-        boolean isDebug = variant.buildType.isJniDebuggable()
-        def variantName = isDebug ? "Debug" : "Release"
-
-        def task = project.tasks.findByName("swiftInstall${variantName}")
-        if (task != null) {
-            return task
-        }
-
-        def extension = project.extensions.getByType(SwiftAndroidPluginExtension)
-
-        def configurationArgs = ["--configuration", isDebug ? "debug" : "release"]
-        def extraArgs = isDebug ? extension.debug.extraInstallFlags : extension.release.extraInstallFlags
-        def apiLevel = extension.apiLevel
-
-        return project.task(type: Exec, "swiftInstall${variantName}") {
-            workingDir "src/main/swift"
-            executable toolchainHandle.swiftInstallPath
-            args configurationArgs + extraArgs
-            environment toolchainHandle.getSwiftEnv(apiLevel)
         }
     }
 
